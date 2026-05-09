@@ -16,7 +16,6 @@ cd LED
 conda create -n led python=3.10 -y
 conda activate led
 
-git lfs install
 pip install -r requirements.txt
 pip install -e .
 ```
