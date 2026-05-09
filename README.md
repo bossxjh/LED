@@ -1,11 +1,11 @@
-# LED-LIBERO
+# LED
 
-Code for computing LED scores and selecting compact robot-learning datasets. This minimal release is organized around the two experiments used in the paper:
+Code for computing LED scores and selecting compact robot-learning datasets. This minimal release is organized around two basic workflows:
 
-1. compute the LED score on LIBERO-10;
-2. select a filtered LIBERO-10 subset and optionally export it back to an RLDS/TFDS dataset.
+1. compute LED scores for a robot-learning dataset;
+2. select a compact filtered subset and optionally export it back to an RLDS/TFDS dataset.
 
-The release includes the extracted OpenVLA feature file used by the minimal reproduction. The local `datasets/libero_10_no_noops` directory is the expected location for the LIBERO-10 TFDS/RLDS data; the multi-GB TFRecord shards are not tracked in Git.
+The included example uses LIBERO-10 as the test dataset. The release provides the extracted OpenVLA feature file used by the minimal reproduction. The local `datasets/libero_10_no_noops` directory is the expected location for the example TFDS/RLDS data; the multi-GB TFRecord shards are not tracked in Git.
 
 ## Installation
 
@@ -25,16 +25,16 @@ Downloaded model weights are cached under `./checkpoint` by default.
 
 ## Data Format
 
-This release provides a ready-to-use feature file and a standard dataset location:
+This release provides a ready-to-use example feature file and a standard dataset location:
 
-- RLDS/TFDS LIBERO-10 location: `./datasets/libero_10_no_noops`
-- extracted OpenVLA features: `./feature/rlds-libero-10_openvla_nf3_bs8.npz`
+- example RLDS/TFDS dataset location: `./datasets/libero_10_no_noops`
+- example extracted OpenVLA features: `./feature/rlds-libero-10_openvla_nf3_bs8.npz`
 
 The feature `.npz` stores per-demo visual features, task ids, task descriptions, episode indices, and action statistics. The selection script uses the episode indices to map the selected demos back to the original RLDS/TFDS dataset.
 
-## 1. Compute LED on LIBERO-10
+## 1. Compute LED
 
-Compute LED directly from the included LIBERO-10 feature file:
+Compute LED directly from the included example feature file:
 
 ```bash
 python -m scripts.test_leanability_v5 \
@@ -51,11 +51,11 @@ python -m scripts.test_leanability_v5 \
   --out_dir ./plots/libero10
 ```
 
-The script prints the dataset LED score (`leanability_dataset`) and task-level scores. With `--plot`, it also saves a LIBERO-10 score-vs-ground-truth plot under `./plots/libero10`.
+The script prints the dataset LED score (`leanability_dataset`) and task-level scores. With `--plot`, it also saves a score-vs-ground-truth plot under `./plots/libero10`.
 
-## 2. Select a Filtered LIBERO-10
+## 2. Select a Filtered Dataset
 
-Run LED-based subset selection on the LIBERO-10 feature file:
+Run LED-based subset selection on the included example feature file:
 
 ```bash
 python -m dataeval.metric.task_subset_select_v2 \
@@ -97,13 +97,13 @@ The new dataset can then be loaded with `tensorflow_datasets` from the parent di
 
 ## Useful Files
 
-- `scripts/get_feature_npz.py`: extract per-demo features and metadata from LIBERO RLDS/TFDS.
-- `scripts/test_leanability_v5.py`: compute LED scores and LIBERO correlations.
+- `scripts/get_feature_npz.py`: extract per-demo features and metadata from an RLDS/TFDS dataset.
+- `scripts/test_leanability_v5.py`: compute LED scores and example benchmark correlations.
 - `dataeval/metric/task_subset_select_v2.py`: select high-LED and low-LED subsets from a feature `.npz`.
 - `scripts/make_filtered_rlds_tfds.py`: rewrite selected episode indices into a filtered RLDS/TFDS dataset.
 
 ## Notes
 
-- The default hyperparameters above are the released LIBERO-10 setting.
+- The default hyperparameters above are the setting used for the included example dataset.
 - The included `.npz` file lets you skip feature extraction for the two minimal experiments.
 - If you want to re-extract features, use `scripts/get_feature_npz.py` with `--dataset_path ./datasets/libero_10_no_noops`.

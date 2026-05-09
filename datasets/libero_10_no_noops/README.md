@@ -1,6 +1,6 @@
-# LIBERO-10 RLDS/TFDS Data
+# Example RLDS/TFDS Data
 
-Place the LIBERO-10 TFDS/RLDS files under this directory:
+Place the example TFDS/RLDS files under this directory:
 
 ```text
 datasets/libero_10_no_noops/1.0.0/
