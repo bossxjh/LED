@@ -8,9 +8,6 @@ Upgraded selector for per-task subsets under fixed budget m=ceil(ratio*N):
       best = max( multi-start greedy , random-max search )
       -> output: filtered_r{ratio}.npz
 
-  (B) BAD subset: minimize L_raw via random-min search
-      -> output: randommin_r{ratio}.npz
-
 IMPORTANT (per your definition):
   task_length(S) = mean(demo_length of selected demos in this task)
 
@@ -28,7 +25,6 @@ Optional unique id keys:
 
 Outputs in --out_dir:
   - filtered_r{ratio}.npz
-  - randommin_r{ratio}.npz
   - selection_report.json
 
 Example:
@@ -39,7 +35,6 @@ Example:
     --best_restarts 10 \
     --random_max_samples 200000 \
     --random_max_patience 30000 \
-    --random_min_samples 5000 \
     --seed 0 \
     --use_fixed_tau_for_search \
     --beta 0.5 \
@@ -505,7 +500,7 @@ def save_json(path: str, obj: Any) -> None:
 # 5) CLI
 # =========================================================
 def parse_args():
-    p = argparse.ArgumentParser("Upgraded: BEST=max(greedy,many-random); BAD=random-min. Export npz + report")
+    p = argparse.ArgumentParser("Select LED-scored filtered subsets and export npz files plus a report.")
 
     p.add_argument("--in_npz", type=str, required=True)
     p.add_argument("--out_dir", type=str, required=True)
@@ -537,7 +532,9 @@ def parse_args():
     p.add_argument("--random_max_patience", type=int, default=30000,
                    help="Early stop if no improvement for this many tries (0 disables)")
 
-    # ---- random-min knobs ----
+    # ---- optional random-min comparison knobs ----
+    p.add_argument("--save_randommin", action="store_true",
+                   help="Also save random-min comparison subsets. Not needed for the standard LED release workflow.")
     p.add_argument("--random_min_samples", type=int, default=5000)
 
     # ---- debugging ----
@@ -620,7 +617,8 @@ def main():
             # random-max
             "random_max_samples": int(args.random_max_samples),
             "random_max_patience": int(args.random_max_patience),
-            # random-min
+            # optional random-min comparison
+            "save_randommin": bool(args.save_randommin),
             "random_min_samples": int(args.random_min_samples),
             "seed": int(args.seed),
             # recorded (unused)
@@ -687,37 +685,17 @@ def main():
             best_local_by_task[tid] = best_idx_local
             best_tl = subset_task_length_from_demo_lengths(demo_lens_task, best_idx_local)
 
-            # ---------- BAD via random-min ----------
-            bad_idx_local, bad_L, bad_evals = random_extreme_select_task_subset(
-                X, demo_lens_task, m,
-                samples=args.random_min_samples,
-                mode="min",
-                patience=0,
-                beta=args.beta, intra_sim=args.intra_sim,
-                adaptive_tau=adaptive_tau, tau_intra=args.tau_intra,
-                tau_floor=args.tau_floor, tau_ceiling=args.tau_ceiling,
-                length_penalty=length_penalty,
-                seed=args.seed + 999 + tid * 31,
-            )
-            bad_local_by_task[tid] = bad_idx_local
-            bad_tl = subset_task_length_from_demo_lengths(demo_lens_task, bad_idx_local)
-
             # ---------- local -> global ----------
             gidx_all = global_map[tid]
             best_idx_global = gidx_all[np.asarray(best_idx_local, dtype=np.int64)].astype(int)
-            bad_idx_global = gidx_all[np.asarray(bad_idx_local, dtype=np.int64)].astype(int)
 
             # ---------- map to episode_index / demo_uid ----------
             best_ep = None
             best_uid = None
-            bad_ep = None
-            bad_uid = None
             if episode_indices_all is not None:
                 best_ep = episode_indices_all[best_idx_global].astype(int).tolist()
-                bad_ep = episode_indices_all[bad_idx_global].astype(int).tolist()
             if demo_uids_all is not None:
                 best_uid = [str(x) for x in demo_uids_all[best_idx_global].tolist()]
-                bad_uid = [str(x) for x in demo_uids_all[bad_idx_global].tolist()]
 
             per_task[str(tid)] = {
                 "N": N,
@@ -739,7 +717,27 @@ def main():
                     "random_max_evaluated": int(randmax_evals),
                     "random_max_selected_local_indices": [int(x) for x in randmax_idx_local],
                 },
-                "randommin": {
+            }
+
+            if args.save_randommin:
+                bad_idx_local, bad_L, bad_evals = random_extreme_select_task_subset(
+                    X, demo_lens_task, m,
+                    samples=args.random_min_samples,
+                    mode="min",
+                    patience=0,
+                    beta=args.beta, intra_sim=args.intra_sim,
+                    adaptive_tau=adaptive_tau, tau_intra=args.tau_intra,
+                    tau_floor=args.tau_floor, tau_ceiling=args.tau_ceiling,
+                    length_penalty=length_penalty,
+                    seed=args.seed + 999 + tid * 31,
+                )
+                bad_local_by_task[tid] = bad_idx_local
+                bad_tl = subset_task_length_from_demo_lengths(demo_lens_task, bad_idx_local)
+                bad_idx_global = gidx_all[np.asarray(bad_idx_local, dtype=np.int64)].astype(int)
+                bad_ep = episode_indices_all[bad_idx_global].astype(int).tolist() if episode_indices_all is not None else None
+                bad_uid = [str(x) for x in demo_uids_all[bad_idx_global].tolist()] if demo_uids_all is not None else None
+
+                per_task[str(tid)]["randommin"] = {
                     "task_length_selected": float(bad_tl),
                     "L_sel": float(bad_L),
                     "selected_local_indices": [int(x) for x in bad_idx_local],
@@ -747,16 +745,17 @@ def main():
                     "selected_episode_indices": bad_ep,
                     "selected_demo_uids": bad_uid,
                     "random_min_evaluated": int(bad_evals),
-                },
-                "gap_best_minus_randommin": float(best_L - bad_L),
-            }
+                }
+                per_task[str(tid)]["gap_best_minus_randommin"] = float(best_L - bad_L)
 
             if args.debug:
-                print(
+                msg = (
                     f"[Task {tid}] N={N} m={m} "
-                    f"greedyL={greedy_L:.6f} randmaxL={randmax_L:.6f} -> best({best_src})={best_L:.6f} "
-                    f"badL={bad_L:.6f} gap={best_L - bad_L:.6f}"
+                    f"greedyL={greedy_L:.6f} randmaxL={randmax_L:.6f} -> best({best_src})={best_L:.6f}"
                 )
+                if args.save_randommin:
+                    msg += f" badL={bad_L:.6f} gap={best_L - bad_L:.6f}"
+                print(msg)
 
         # ---- save BEST filtered npz ----
         arrays_best = build_filtered_npz_arrays(npzdata, best_local_by_task)
@@ -764,21 +763,22 @@ def main():
         out_best = os.path.join(args.out_dir, f"filtered_r{r_key}.npz")
         save_npz(out_best, arrays_best)
 
-        # ---- save BAD filtered npz ----
-        arrays_bad = build_filtered_npz_arrays(npzdata, bad_local_by_task)
-        update_task_lengths_in_filtered_npz(arrays_bad)
-        out_bad = os.path.join(args.out_dir, f"randommin_r{r_key}.npz")
-        save_npz(out_bad, arrays_bad)
-
         per_task["_filtered_npz_best"] = out_best
-        per_task["_filtered_npz_randommin"] = out_bad
         per_task["_kept_best_total"] = int(arrays_best["selected_global_indices"].shape[0])
-        per_task["_kept_randommin_total"] = int(arrays_bad["selected_global_indices"].shape[0])
+
+        if args.save_randommin:
+            arrays_bad = build_filtered_npz_arrays(npzdata, bad_local_by_task)
+            update_task_lengths_in_filtered_npz(arrays_bad)
+            out_bad = os.path.join(args.out_dir, f"randommin_r{r_key}.npz")
+            save_npz(out_bad, arrays_bad)
+            per_task["_filtered_npz_randommin"] = out_bad
+            per_task["_kept_randommin_total"] = int(arrays_bad["selected_global_indices"].shape[0])
 
         report["per_ratio"][r_key] = per_task
 
         print(f"[OK] ratio={r_key} BEST saved: {out_best} kept={per_task['_kept_best_total']}")
-        print(f"[OK] ratio={r_key} BAD  saved: {out_bad} kept={per_task['_kept_randommin_total']}")
+        if args.save_randommin:
+            print(f"[OK] ratio={r_key} random-min saved: {out_bad} kept={per_task['_kept_randommin_total']}")
 
     out_report = os.path.join(args.out_dir, "selection_report.json")
     save_json(out_report, report)

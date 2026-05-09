@@ -1,6 +1,10 @@
 # Example RLDS/TFDS Data
 
-Place the example TFDS/RLDS files under this directory:
+Download the example TFDS/RLDS data from the OpenVLA modified LIBERO RLDS dataset:
+
+https://huggingface.co/datasets/openvla/modified_libero_rlds
+
+Place the TFDS/RLDS files under this directory:
 
 ```text
 datasets/libero_10_no_noops/1.0.0/

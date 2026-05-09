@@ -5,13 +5,13 @@ Code for computing LED scores and selecting compact robot-learning datasets. Thi
 1. compute LED scores for a robot-learning dataset;
 2. select a compact filtered subset and optionally export it back to an RLDS/TFDS dataset.
 
-The included example uses LIBERO-10 as the test dataset. The release provides the extracted OpenVLA feature file used by the minimal reproduction. The local `datasets/libero_10_no_noops` directory is the expected location for the example TFDS/RLDS data; the multi-GB TFRecord shards are not tracked in Git.
+The included example uses LIBERO-10 as the test dataset. The example TFDS/RLDS data can be downloaded from the OpenVLA modified LIBERO RLDS dataset: https://huggingface.co/datasets/openvla/modified_libero_rlds. This release provides the extracted OpenVLA feature file used by the minimal reproduction.
 
 ## Installation
 
 ```bash
-git clone <this-repository-url>
-cd github_rep/release
+git clone https://github.com/bossxjh/LED.git
+cd LED
 
 conda create -n led python=3.10 -y
 conda activate led
@@ -65,7 +65,6 @@ python -m dataeval.metric.task_subset_select_v2 \
   --best_restarts 10 \
   --random_max_samples 200000 \
   --random_max_patience 30000 \
-  --random_min_samples 5000 \
   --seed 0 \
   --use_fixed_tau_for_search \
   --task_knn 7 \
@@ -79,7 +78,6 @@ python -m dataeval.metric.task_subset_select_v2 \
 Outputs are written to `--out_dir`:
 
 - `filtered_r0.8.npz`, `filtered_r0.6.npz`, ...: LED-selected subsets;
-- `randommin_r0.8.npz`, `randommin_r0.6.npz`, ...: low-LED comparison subsets;
 - `selection_report.json`: selected local/global indices, episode indices, and per-task scores.
 
 To materialize a selected subset back into an RLDS/TFDS dataset, use:
