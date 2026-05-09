@@ -1,0 +1,25 @@
+数据预处理：默认需要是一段视频是一个任务。
+
+
+openvla：视觉上就是DINOv2 + SigLIP的拼接吧。
+是prismatic的架构，用的是DINOv2 + SigLIP 双编码器提取特征然后融合映射到一个共同的特征空间上的。
+
+pi0.5: SigLIP‑So400m
+PaliGemma的backbone。PaliGemma uses the SigLIP‑So400m vision encoder
+
+diffusion policy：（原始版本2023）：
+它的视觉头是：传统 CNN + spatial softmax / keypoint extractor
+
+
+参数：不同帧数处理的效果+超参等
+
+
+
+任务之间的相似度用clip对语言上的相似。
+特征的每一个参数和输出之间的关系（就是模型需要学习到的规律）。那么对于数据最直观可以做的就是：如果我的模型需要学习这个参数对输出影响，我就需要不断的改变这个参数观察效果才行。
+
+这个是一个metric，这个metric指标是用来衡量数据集的可学性的，然后这个指标和真实模型的学习后的性能提升之间是有强关联的。
+
+
+
+

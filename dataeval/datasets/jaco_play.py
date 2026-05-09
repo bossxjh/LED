@@ -1,0 +1,59 @@
+import os
+import pickle
+import numpy as np
+from PIL import Image
+from io import BytesIO
+
+def decode_image_bytes(image_bytes):
+    """把 bytes 转成 np.array RGB 图像"""
+    try:
+        img = Image.open(BytesIO(image_bytes)).convert("RGB")
+        return np.array(img)
+    except Exception as e:
+        print(f"[WARN] Failed to decode image: {e}")
+        return None
+
+def parse_jaco(dataset_path, num_frames=3):
+    """
+    jaco_play 数据集解析器
+    dataset_path: pickle 文件夹
+    输出：生成器，每次 yield np.array [num_frames, H, W, 3]
+    """
+    # 收集所有 pickle 文件
+    pickle_files = []
+    for root, dirs, files in os.walk(dataset_path):
+        for f in files:
+            if f.endswith(".data.pickle") and not f.startswith("._"):
+                pickle_files.append(os.path.join(root, f))
+    pickle_files = sorted(pickle_files)
+    print(f"Found {len(pickle_files)} pickle files in {dataset_path}")
+
+    # 遍历每个 pickle 文件
+    for fpath in pickle_files:
+        with open(fpath, "rb") as f:
+            try:
+                data = pickle.load(f)
+            except Exception as e:
+                print(f"[WARN] Failed to load pickle {fpath}: {e}")
+                continue
+
+        steps = data.get("steps", [])
+        T = len(steps)
+        if T < num_frames:
+            continue  # 不够帧就跳过
+
+        # 均匀采样 num_frames
+        indices = np.linspace(0, T-1, num_frames, dtype=int)
+
+        frames = []
+        for idx in indices:
+            step = steps[idx]
+            # jaco_play pickle 中图像 key 是 "rgb_static"
+            img_bytes = step.get("observation", {}).get("rgb_static", None)
+            if img_bytes is not None:
+                img_np = decode_image_bytes(img_bytes)
+                if img_np is not None:
+                    frames.append(img_np)
+
+        if len(frames) == num_frames:
+            yield np.stack(frames, axis=0)  # [num_frames, H, W, 3]

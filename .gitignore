@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.DS_Store
+._*
+
+checkpoint/*
+!checkpoint/.gitkeep
+datasets/libero_10_no_noops/1.0.0/*.tfrecord-*
+plots/
+tmp/
+*.npy
+*.png
+*.csv
+*.log

@@ -1,0 +1,17 @@
+numpy
+scipy
+scikit-learn
+matplotlib
+tqdm
+pillow
+opencv-python
+h5py
+decord
+torch
+torchvision
+transformers
+sentence-transformers
+sentencepiece
+protobuf
+tensorflow
+tensorflow-datasets
